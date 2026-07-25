@@ -24,8 +24,11 @@ no arguments.
 Or directly on the pod (web terminal or any ssh session), no Mac needed:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/karthikviswanathn/setup-runpod/main/bootstrap.sh -o /workspace/bootstrap.sh && bash /workspace/bootstrap.sh
+curl -fsSL https://raw.githubusercontent.com/karthikviswanathn/setup-runpod/main/bootstrap.sh -o /workspace/bootstrap.sh && bash /workspace/bootstrap.sh && source /workspace/pod_env.sh
 ```
+
+The trailing `source` activates the environment in the current shell; without it the
+tools are only on PATH in shells opened after the bootstrap.
 
 This installs everything, but cannot sync auth from the Mac. If the `/workspace`
 volume already has logins from an earlier `setup-pod.sh` run they keep working;
