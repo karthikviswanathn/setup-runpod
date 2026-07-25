@@ -138,16 +138,28 @@ alias ws='cd /workspace'
 [ -f /workspace/pod_env.local.sh ] && . /workspace/pod_env.local.sh
 EOF
 
-# ---------- hook the env file into ~/.bashrc (container disk, redo each restart) ----------
-# Prepended so it also runs for non-interactive shells (Ubuntu's .bashrc returns
-# early for those before reaching appended lines).
+# ---------- hook the env file into shell startup (container disk, redo each restart) ----------
+# Two hooks in ~/.bashrc:
+#  - early (line 1): non-interactive ssh shells hit Ubuntu's interactive guard and
+#    return before the end of the file, so only a top-of-file hook reaches them
+#  - late (last line): RunPod's start script appends "source /etc/rp_environment"
+#    to .bashrc, which re-exports a fixed PATH snapshot and would clobber the
+#    early hook in interactive shells; the late hook runs after it and wins
+log "hooking pod_env.sh into shell startup files"
+HOOK='[ -f /workspace/pod_env.sh ] && . /workspace/pod_env.sh'
 BRC=$HOME/.bashrc
 touch "$BRC"
-if ! grep -qF 'pod_env.sh' "$BRC"; then
-  log "hooking pod_env.sh into ~/.bashrc"
-  { echo '[ -f /workspace/pod_env.sh ] && . /workspace/pod_env.sh'; cat "$BRC"; } > "$BRC.new"
-  mv "$BRC.new" "$BRC"
+sed -i '\%^\[ -f /workspace/pod_env\.sh \]%d' "$BRC"
+{ echo "$HOOK # pod-env-early"; cat "$BRC"; } > "$BRC.new"
+mv "$BRC.new" "$BRC"
+echo "$HOOK # pod-env-late" >> "$BRC"
+# system-wide, for interactive shells whose HOME is not $HOME (e.g. web terminals)
+if [ -f /etc/bash.bashrc ] && ! grep -q 'pod_env.sh' /etc/bash.bashrc; then
+  echo "$HOOK # pod-env" >> /etc/bash.bashrc
 fi
+# login shells of any user
+mkdir -p /etc/profile.d
+echo "$HOOK" > /etc/profile.d/pod-env.sh
 
 # ---------- default tmux config (persistent, only written if absent) ----------
 TMUX_CONF=$PHOME/.config/tmux/tmux.conf
